@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Prediction</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        /* Add additional CSS styles as needed */
+        body {
+            background-image: url('/static/ishant-mishra-osWDvhPlGLU-unsplash.jpg'); /* Fix path to the background image */
+            background-size: cover;
+            background-position: center;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body>
+    <h1>Stock Prediction</h1>
+    <form action="result.html" method="GET"> <!-- Change method to GET and action to result.html -->
+        <input type="text" name="ticker" placeholder="Enter Ticker Symbol">
+        <button type="submit">Search</button>
+    </form>
+</body>
+</html>
