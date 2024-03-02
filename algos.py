@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, redirect, url_for, request
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,31 +21,24 @@ import requests
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
+
+app=Flask(__name__)
+
 vader = SentimentIntensityAnalyzer()
 
-app = Flask(__name__)
-
-vader = SentimentIntensityAnalyzer()
-
-
-@app.route('/', methods=['GET'])
+@app.route('/')
 def index():
     return render_template('index.html')
+    
 
+def calculate_accuracies(accuracy_arima, accuracy_lstm, accuracy_rf, accuracy_lr, pred_arima, pred_lstm, pred_rf, pred_lr, decision):
+    # Your existing code for calculating accuracies here...
+    return accuracy_arima, accuracy_lstm, accuracy_rf, accuracy_lr, pred_arima, pred_lstm, pred_rf, pred_lr, decision
 
-@app.route('/know.html')
-def know():
-    return render_template('know.html')
-
-@app.route('/results', methods=['POST'])
-def results():
-
-    def get_historical_from_csv(file_path):
-        #print("hello")
-        # Try reading the data from the CSV file
-        df = pd.read_csv(file_path)
-        #print(df)
-
+@app.route("/home", methods=['GET'])
+def home():
+    
+    def get_historical_from_csv(df):
         # Ensure that the DataFrame has the required columns
         required_columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
         if not set(required_columns).issubset(df.columns):
@@ -89,28 +82,24 @@ def results():
         Quantity_date = df[['Close']]
         Quantity_date = Quantity_date.fillna(Quantity_date.bfill())
         fig = plt.figure(figsize=(7.2,4.8),dpi=65)
-        plt.plot(df.index, df['Close'])
-        plt.savefig('static.png')
-        plt.show(fig)
         quantity = Quantity_date.values
         size = int(len(quantity) * 0.80)
         train, test = quantity[0:size], quantity[size:len(quantity)]
 
         predictions, forecast_set = arima_model(train, test)
 
-        #fig = plt.figure(figsize=(7.2,4.8),dpi=65)
-        #plt.plot(test,label='Actual Price')
-        #plt.plot(predictions,label='Predicted Price')
-        #plt.legend(loc=4)
-        #plt.savefig('static1.png')
-        #plt.show()
-        #plt.close(fig)
+        fig = plt.figure(figsize=(7.2,4.8),dpi=65)
+        plt.plot(test,label='Actual Price')
+        plt.plot(predictions,label='Predicted Price')
+        plt.legend(loc=4)
+        plt.savefig('static/arplot.png')
+        
         arima_pred=round(forecast_set[0],2)
         error_arima = round(math.sqrt(mean_squared_error(test, predictions)),2)
         accuracy_arima = round((r2_score(test, predictions)*100),2)
         mean = statistics.mean(forecast_set)
 
-        print("ARIMA Model Retrieval Successful..")
+        # print("ARIMA Model Retrieval Successful..")
         return arima_pred, error_arima, accuracy_arima, forecast_set, mean
 
     def LSTM_ALGO(df):
@@ -184,10 +173,8 @@ def results():
         fig = plt.figure(figsize=(7.2, 4.8), dpi=65)
         plt.plot(real_stock_price, label='Actual Price')
         plt.plot(predicted_stock_price, label='Predicted Price')
-
         plt.legend(loc=4)
-        plt.savefig('LSTM.png')
-        plt.show()
+        plt.savefig('static/lstmplot.png')
 
         error_lstm = round(math.sqrt(mean_squared_error(real_stock_price, predicted_stock_price)), 2)
 
@@ -200,9 +187,6 @@ def results():
         return lstm_pred, error_lstm, accuracy_lstm
 
     def LIN_REG_ALGO(df):
-
-        # Rest of the function...
-
         forecast_out = int(7)
         df['Close after n days'] = df['Close'].shift(-forecast_out)
         df_new = df[['Close', 'Close after n days']]
@@ -236,10 +220,8 @@ def results():
         fig = plt.figure(figsize=(7.2, 4.8), dpi=65)
         plt.plot(y_test, label='Actual Price')
         plt.plot(y_test_pred, label='Predicted Price')
-
         plt.legend(loc=4)
-        plt.savefig('LR.png')
-        plt.show()
+        plt.savefig('static/lrplot.png')       
 
         error_lr = round(math.sqrt(mean_squared_error(y_test, y_test_pred)), 2)
 
@@ -253,31 +235,30 @@ def results():
         return lr_pred, error_lr, accuracy_lr
 
     def RF_ALGO(df):
-    # Shift the data by 7 days
+        # Shift the data by 7 days
         forecast_out = int(7)
         df['Close after n days'] = df['Close'].shift(-forecast_out)
         df_new = df[['Close', 'Close after n days']]
 
-    # Prepare features and target variable
+        # Prepare features and target variable
         X = np.array(df_new.iloc[:-forecast_out, :-1])
         y = np.array(df_new.iloc[:-forecast_out, -1])
 
-    # Unknown, X to be forecasted
+        # Unknown, X to be forecasted
         X_to_be_forecasted = np.array(df_new.iloc[-forecast_out:, :-1])
 
-    # Training, testing to plot graphs, check accuracy
+        # Training, testing to plot graphs, check accuracy
         X_train = X[0:int(0.8 * len(df)), :]
         X_test = X[int(0.8 * len(df)):, :]
         y_train = y[0:int(0.8 * len(df))]
         y_test = y[int(0.8 * len(df)):]
 
-    # Hyperparameter tuning using GridSearchCV
+        # Hyperparameter tuning using GridSearchCV
         param_grid = {
         'n_estimators': [50, 100, 150, 200],
         'max_depth': [None, 10, 20, 30],
         'min_samples_split': [2, 5, 10],
-        'min_samples_leaf': [1, 2, 4]
-        }
+        'min_samples_leaf': [1, 2, 4]}
 
         rf_model = RandomForestRegressor(random_state=42)
         grid_search = GridSearchCV(rf_model, param_grid, cv=5, scoring='r2', n_jobs=-1)
@@ -285,21 +266,21 @@ def results():
 
         best_rf_model = grid_search.best_estimator_
 
-    # Testing
+        # Testing
         y_test_pred = best_rf_model.predict(X_test)
 
-    # Calculate error and accuracy
+        # Calculate error and accuracy
         error_rf = np.sqrt(mean_squared_error(y_test, y_test_pred))
         accuracy_rf = best_rf_model.score(X_test, y_test) * 100  # R-squared score in percentage
 
-    # Plotting
+        # Plotting
         plt.figure(figsize=(7.2, 4.8), dpi=65)
         plt.plot(y_test, label='Actual Price')
         plt.plot(y_test_pred, label='Predicted Price')
         plt.legend(loc=4)
-        plt.show()
-
-    # Forecasting
+        plt.savefig('static/rfplot.png')
+        
+        # Forecasting
         forecast_set = best_rf_model.predict(X_to_be_forecasted)
         mean = forecast_set.mean()
 
@@ -335,102 +316,112 @@ def results():
         neg = 0
         neut = 0
         global_polarity = 0.0
-        try:
-            response = requests.get(base_url, params=params)
-            response.raise_for_status()
-            news_data = response.json()
+        
+        response = requests.get(base_url, params=params)
+        response.raise_for_status()
+        news_data = response.json()
 
-            if news_data["status"] == "ok":
-                articles = news_data["articles"]
-                for article in articles:
-                    title=article['title']
-                    print(f"Title: {title}")
+        if news_data["status"] == "ok":
+            articles = news_data["articles"]
+            for article in articles:
+                title=article['title']
+                #print(f"Title: {title}")
                 # print(f"Source: {article['source']['name']}")
                 # print(f"URL: {article['url']}")
-                    news_list.append(title)
-                    compound = vader.polarity_scores(title)["compound"]
-                    global_polarity = global_polarity + compound
-                    print(title)
-                    if (compound > 0):
-                        pos = pos + 1
-                    elif (compound < 0):
-                        neg = neg + 1
-                    else:
-                        neut = neut + 1
-                    print("-" * 30)
-            else:
-                print("Error in API response")
+                news_list.append(title)
+                compound = vader.polarity_scores(title)["compound"]
+                global_polarity = global_polarity + compound
+                
+                if (compound > 0):
+                    pos = pos + 1
+                elif (compound < 0):
+                    neg = neg + 1
+                else:
+                    neut = neut + 1
+                #print("-" * 30)
+        else:
+            print("Error in API response")
 
-        except requests.exceptions.RequestException as e:
-            print(f"Error: {e}")
+        
         if global_polarity >= 0:
             news_pol = "OVERALL POSITIVE"
         else:
             news_pol = "OVERALL NEGATIVE"
 
         print("Sentiment Analysis Retrieval Successful..")
+
+        # Determine the sentiment with the maximum count
+        max_sentiment = max(pos, neg, neut)
+    
+    # Create labels and counts for the pie chart
+        labels = ['Positive', 'Negative', 'Neutral']
+        sizes = [pos, neg, neut]
+    
+    # Highlight the sentiment with the maximum count
+        explode = (0.1 if max_sentiment == pos else 0, 
+               0.1 if max_sentiment == neg else 0, 
+               0.1 if max_sentiment == neut else 0)
+    
+    # Create the pie chart
+        plt.figure(figsize=(8, 6))
+        plt.pie(sizes, explode=explode, labels=labels, autopct='%1.1f%%', startangle=140)
+        plt.title('Sentiment Distribution')
+    
+    # Show the pie chart
+        plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+        plt.savefig('static/piechart.png')
+
         return global_polarity, news_list, pos, neg, neut, news_pol
 
-# Replace 'YOUR_API_KEY' with your actual News API key
+
     csv_file_path = '/Users/sanvisharma/Desktop/project/data/tcsn.csv'
+    # Try reading the data from the CSV file
     df = pd.read_csv(csv_file_path)
     quote_data=df.dropna()
-
-    historical_data = get_historical_from_csv(csv_file_path)
+    historical_data = get_historical_from_csv(df)
 
     if historical_data is not None and not historical_data.empty:
-        # Process the historical data as needed
+    # Process the historical data as needed
         today_stock = historical_data.iloc[-1:]
         today_stock = today_stock.round(2)
         historical_data = historical_data.dropna()
-    
-    arima_pred, error_arima, accuracy_arima, forecast_set, mean = ARIMA_ALGO(historical_data)
+
+    pred_arima, error_arima, accuracy_arima, forecast_set, mean = ARIMA_ALGO(historical_data)
     print(accuracy_arima)
 
-    lstm_pred, error_lstm, accuracy_lstm = LSTM_ALGO(historical_data)
+    pred_lstm, error_lstm, accuracy_lstm = LSTM_ALGO(historical_data)
     print(accuracy_lstm)
 
-    lr_pred, error_lr, accuracy_lr = LIN_REG_ALGO(historical_data)
+    pred_lr, error_lr, accuracy_lr= LIN_REG_ALGO(historical_data)
     print(accuracy_lr)
 
-    rf_pred, error_rf, accuracy_rf = RF_ALGO(historical_data)
+    pred_rf, error_rf, accuracy_rf = RF_ALGO(historical_data)
     print(accuracy_rf)
 
-    maximum_accuracy=max(accuracy_arima, accuracy_lstm, accuracy_rf, accuracy_lr)
-    print("Max Accuracy of model is", maximum_accuracy, "%")
-
-# Replace 'YOUR_API_KEY' with your actual News API key
     news_api_key = 'efe1f77897c44a75a2ea2dee7476648b'
-    stock_symbol = 'TCS'  # Replace with the desired stock symbol
+    stock_symbol = request.args.get('search')  # Get the search query
+    print(stock_symbol)
 
     global_polarity, news_list, pos, neg, neut, news_pol = get_financial_news(news_api_key, stock_symbol)
-    print('positive= ',pos)
-    print('negative= ',neg)
-    print('neutral= ',neut)
-    print(news_pol)
-
-#print(mean)
     idea, decision = recommendation(pos, neg, neut, quote_data, mean)
+    total_items = len(news_list)
+
+    arima_accuracy, lstm_accuracy, rf_accuracy, lr_accuracy, arima_pred, lstm_pred, rf_pred, lr_pred, fdecision = calculate_accuracies(accuracy_arima, accuracy_lstm, accuracy_rf, accuracy_lr, pred_arima, pred_lstm, pred_rf, pred_lr, decision)
+
+    arima_accuracy=round(arima_accuracy,2)
+    lstm_accuracy=round(lstm_accuracy,2)
+    rf_accuracy=round(rf_accuracy,2)
+    lr_accuracy=round(lr_accuracy,2)
+
+    arima_pred=round(arima_pred,2)
+    lstm_pred=round(lstm_pred,2)
+    rf_pred=round(rf_pred,2)
+    lr_pred=round(lr_pred,2)
+
     print(decision)
 
-    return redirect(url_for('result_page'))
-
-    @app.route('/')
-    def index():
-        return render_template('finalres.html', arima_accuracy=accuracy_arima, lstm_accuracy=accuracy_lstm,
-                               lr_accuracy=accuracy_lr, rf_accuracy=accuracy_rf, max_accuracy=maximum_accuracy,
-                               sentiment=news_pol, decision=decision)
-
-
-    return render_template('results.html', arima_accuracy=accuracy_arima, lstm_accuracy=accuracy_lstm,
-                               lr_accuracy=accuracy_lr, rf_accuracy=accuracy_rf, max_accuracy=maximum_accuracy,
-                               sentiment=news_pol, decision=decision)
-
-
-
-@app.route('/result.html', methods=['GET'])
-def result_page():
-    return render_template('result.html')
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    # Return a valid response tuple
+    return render_template("finalres.html", aar=arima_accuracy, alstm=lstm_accuracy, arf=rf_accuracy, alr=lr_accuracy, arima_pred=arima_pred, lstm_pred=lstm_pred, rf_pred=rf_pred, lr_pred=lr_pred, decision=decision, fin_head=news_pol, idea=idea, quote=stock_symbol ,total_items=len(news_list), news_list = news_list)
+    
+if __name__=="__main__" :
+    app.run()
