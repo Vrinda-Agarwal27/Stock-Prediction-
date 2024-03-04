@@ -29,7 +29,18 @@ vader = SentimentIntensityAnalyzer()
 @app.route('/')
 def index():
     return render_template('index.html')
-    
+
+@app.route("/index", methods=['GET'])
+def result():
+    return redirect('/result')
+
+@app.route("/result")
+def show_result():
+    return render_template('result.html')
+
+@app.route("/kmore")
+def kmore():
+    return render_template('know.html')
 
 def calculate_accuracies(accuracy_arima, accuracy_lstm, accuracy_rf, accuracy_lr, pred_arima, pred_lstm, pred_rf, pred_lr, decision):
     # Your existing code for calculating accuracies here...
@@ -365,7 +376,7 @@ def home():
     # Create the pie chart
         plt.figure(figsize=(8, 6))
         plt.pie(sizes, explode=explode, labels=labels, autopct='%1.1f%%', startangle=140)
-        plt.title('Sentiment Distribution')
+        #plt.title('Sentiment Distribution')
     
     # Show the pie chart
         plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
@@ -422,6 +433,6 @@ def home():
 
     # Return a valid response tuple
     return render_template("finalres.html", aar=arima_accuracy, alstm=lstm_accuracy, arf=rf_accuracy, alr=lr_accuracy, arima_pred=arima_pred, lstm_pred=lstm_pred, rf_pred=rf_pred, lr_pred=lr_pred, decision=decision, fin_head=news_pol, idea=idea, quote=stock_symbol ,total_items=len(news_list), news_list = news_list)
-    
+
 if __name__=="__main__" :
     app.run()
