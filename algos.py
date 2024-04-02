@@ -21,6 +21,14 @@ import requests
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
+import socket
+
+def find_free_port():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(('localhost', 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    return port
 
 app=Flask(__name__)
 
@@ -30,17 +38,17 @@ vader = SentimentIntensityAnalyzer()
 def index():
     return render_template('index.html')
 
-@app.route("/index", methods=['GET'])
+@app.route("/result", methods=['POST', 'GET'])
 def result():
-    return redirect('/result')
-
-@app.route("/result")
-def show_result():
     return render_template('result.html')
 
-@app.route("/kmore")
+@app.route("/know")
 def kmore():
-    return render_template('know.html')
+    return redirect(url_for('know'))
+
+# @app.route("/know")
+# def kmore():
+#     return render_template('know.html')
 
 def calculate_accuracies(accuracy_arima, accuracy_lstm, accuracy_rf, accuracy_lr, pred_arima, pred_lstm, pred_rf, pred_lr, decision):
     # Your existing code for calculating accuracies here...
@@ -390,6 +398,8 @@ def home():
     df = pd.read_csv(csv_file_path)
     quote_data=df.dropna()
     historical_data = get_historical_from_csv(df)
+    button_type = request.args.get('type', '')
+    print(button_type)
 
     if historical_data is not None and not historical_data.empty:
     # Process the historical data as needed
@@ -410,7 +420,7 @@ def home():
     print(accuracy_rf)
 
     news_api_key = 'efe1f77897c44a75a2ea2dee7476648b'
-    stock_symbol = request.args.get('search')  # Get the search query
+    stock_symbol = request.args.get('search', '')
     print(stock_symbol)
 
     global_polarity, news_list, pos, neg, neut, news_pol = get_financial_news(news_api_key, stock_symbol)
@@ -432,7 +442,10 @@ def home():
     print(decision)
 
     # Return a valid response tuple
-    return render_template("finalres.html", aar=arima_accuracy, alstm=lstm_accuracy, arf=rf_accuracy, alr=lr_accuracy, arima_pred=arima_pred, lstm_pred=lstm_pred, rf_pred=rf_pred, lr_pred=lr_pred, decision=decision, fin_head=news_pol, idea=idea, quote=stock_symbol ,total_items=len(news_list), news_list = news_list)
+    return render_template("finalres.html", aar=arima_accuracy, alstm=lstm_accuracy, arf=rf_accuracy, alr=lr_accuracy, arima_pred=arima_pred, lstm_pred=lstm_pred, rf_pred=rf_pred, lr_pred=lr_pred, decision=decision, fin_head=news_pol, idea=idea, quote=stock_symbol ,total_items=total_items, news_list = news_list)
 
-if __name__=="__main__" :
-    app.run()
+
+if __name__=="__main__":
+    port = find_free_port()
+    print(f"Starting server on port {port}")
+    app.run(port=port)
