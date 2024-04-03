@@ -43,7 +43,7 @@ def result():
     return render_template('result.html')
 
 @app.route("/know")
-def kmore():
+def know():
     return redirect(url_for('know'))
 
 # @app.route("/know")
