@@ -22,6 +22,9 @@ from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
 import socket
+from pandas_datareader import data as pdr
+import yfinance as yf
+import datetime
 
 def find_free_port():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -34,49 +37,49 @@ app=Flask(__name__)
 
 vader = SentimentIntensityAnalyzer()
 
+st_symbol= None
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route("/result", methods=['POST', 'GET'])
+@app.route("/result", methods=['POST'])
 def result():
+    search_query = request.form.get('search', '')
+    global st_symbol
+    st_symbol = search_query
+    
     return render_template('result.html')
 
 @app.route("/know")
 def know():
     return redirect(url_for('know'))
 
-# @app.route("/know")
-# def kmore():
-#     return render_template('know.html')
-
 def calculate_accuracies(accuracy_arima, accuracy_lstm, accuracy_rf, accuracy_lr, pred_arima, pred_lstm, pred_rf, pred_lr, decision):
-    # Your existing code for calculating accuracies here...
     return accuracy_arima, accuracy_lstm, accuracy_rf, accuracy_lr, pred_arima, pred_lstm, pred_rf, pred_lr, decision
 
-@app.route("/home", methods=['GET'])
-def home():
-    
+@app.route("/home", methods=['GET', 'POST'])
+def home():    
     def get_historical_from_csv(df):
-        # Ensure that the DataFrame has the required columns
+        
         required_columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
         if not set(required_columns).issubset(df.columns):
             print("CSV file is missing required columns.")
             return None
 
-        # Derive 'Adj Close' by doing a backward shift of 7 days from 'Close'
         df['Adj Close'] = df['Close'].shift(-7)
 
-        # Drop rows where 'Adj Close' is NaN (resulting from backward shift)
         df = df.dropna(subset=['Adj Close'])
 
-        print("Data Retrieval Successful (from CSV).")
+        #print("Data Retrieval Successful (from CSV).")
         return df
 
     def ARIMA_ALGO(df):
+        
         if 'Date' in df.columns:
             df = df.set_index('Date')
         def arima_model(train, test):
+            print("hi")
             history = [x for x in train]
             predictions = list()
             forecast_set = list()
@@ -105,6 +108,8 @@ def home():
         size = int(len(quantity) * 0.80)
         train, test = quantity[0:size], quantity[size:len(quantity)]
 
+        print("hi1")
+
         predictions, forecast_set = arima_model(train, test)
 
         fig = plt.figure(figsize=(7.2,4.8),dpi=65)
@@ -118,16 +123,15 @@ def home():
         accuracy_arima = round((r2_score(test, predictions)*100),2)
         mean = statistics.mean(forecast_set)
 
-        # print("ARIMA Model Retrieval Successful..")
         return arima_pred, error_arima, accuracy_arima, forecast_set, mean
 
     def LSTM_ALGO(df):
         dataset_train = df.iloc[0:int(0.8 * len(df)), :]
         dataset_test = df.iloc[int(0.8 * len(df)):, :]
-        training_set = df.iloc[:, 3:4].values  # Taking Adj Close values for all rows
+        training_set = df.iloc[:, 3:4].values  
 
         sc = MinMaxScaler(feature_range=(0, 1))
-        training_set_scaled = sc.fit_transform(training_set)  # First fit to data and then transform for training data
+        training_set_scaled = sc.fit_transform(training_set)  
 
         X_train = []
         y_train = []
@@ -214,26 +218,21 @@ def home():
         y = np.reshape(y, (-1, 1))
         X = np.array(df_new.iloc[:-forecast_out, 0:-1])
 
-        # Unknown, X to be forecasted
         X_to_be_forecasted = np.array(df_new.iloc[-forecast_out:, 0:-1])
 
-        # Training, testing to plot graphs, check accuracy
         X_train = X[0:int(0.8 * len(df)), :]
         X_test = X[int(0.8 * len(df)):, :]
         y_train = y[0:int(0.8 * len(df)), :]
         y_test = y[int(0.8 * len(df)):, :]
 
-        # Feature Scaling===Normalization
         sc = StandardScaler()
         X_train = sc.fit_transform(X_train)
         X_test = sc.transform(X_test)
         X_to_be_forecasted = sc.transform(X_to_be_forecasted)
 
-        # Training
         clf = LinearRegression(n_jobs=-1)
         clf.fit(X_train, y_train)
 
-        # Testing
         y_test_pred = clf.predict(X_test)
 
         fig = plt.figure(figsize=(7.2, 4.8), dpi=65)
@@ -244,7 +243,6 @@ def home():
 
         error_lr = round(math.sqrt(mean_squared_error(y_test, y_test_pred)), 2)
 
-        # Forecasting
         forecast_set = clf.predict(X_to_be_forecasted)
         mean = forecast_set.mean()
         lr_pred = round(forecast_set[0, 0], 2)
@@ -254,25 +252,20 @@ def home():
         return lr_pred, error_lr, accuracy_lr
 
     def RF_ALGO(df):
-        # Shift the data by 7 days
         forecast_out = int(7)
         df['Close after n days'] = df['Close'].shift(-forecast_out)
         df_new = df[['Close', 'Close after n days']]
 
-        # Prepare features and target variable
         X = np.array(df_new.iloc[:-forecast_out, :-1])
         y = np.array(df_new.iloc[:-forecast_out, -1])
 
-        # Unknown, X to be forecasted
         X_to_be_forecasted = np.array(df_new.iloc[-forecast_out:, :-1])
 
-        # Training, testing to plot graphs, check accuracy
         X_train = X[0:int(0.8 * len(df)), :]
         X_test = X[int(0.8 * len(df)):, :]
         y_train = y[0:int(0.8 * len(df))]
         y_test = y[int(0.8 * len(df)):]
 
-        # Hyperparameter tuning using GridSearchCV
         param_grid = {
         'n_estimators': [50, 100, 150, 200],
         'max_depth': [None, 10, 20, 30],
@@ -285,21 +278,17 @@ def home():
 
         best_rf_model = grid_search.best_estimator_
 
-        # Testing
         y_test_pred = best_rf_model.predict(X_test)
 
-        # Calculate error and accuracy
         error_rf = np.sqrt(mean_squared_error(y_test, y_test_pred))
         accuracy_rf = best_rf_model.score(X_test, y_test) * 100  # R-squared score in percentage
 
-        # Plotting
         plt.figure(figsize=(7.2, 4.8), dpi=65)
         plt.plot(y_test, label='Actual Price')
         plt.plot(y_test_pred, label='Predicted Price')
         plt.legend(loc=4)
         plt.savefig('static/rfplot.png')
         
-        # Forecasting
         forecast_set = best_rf_model.predict(X_to_be_forecasted)
         mean = forecast_set.mean()
 
@@ -319,7 +308,6 @@ def home():
             idea= "FALL"
             decision= "SELL"
 
-        print("Recommendation Retrieval Successful..")
         return idea, decision
 
     def get_financial_news(api_key, stock_symbol):
@@ -336,7 +324,7 @@ def home():
         neut = 0
         global_polarity = 0.0
         
-        response = requests.get(base_url, params=params)
+        response = requests.get(base_url, params=params, verify=False)
         response.raise_for_status()
         news_data = response.json()
 
@@ -344,9 +332,7 @@ def home():
             articles = news_data["articles"]
             for article in articles:
                 title=article['title']
-                #print(f"Title: {title}")
-                # print(f"Source: {article['source']['name']}")
-                # print(f"URL: {article['url']}")
+                
                 news_list.append(title)
                 compound = vader.polarity_scores(title)["compound"]
                 global_polarity = global_polarity + compound
@@ -357,7 +343,6 @@ def home():
                     neg = neg + 1
                 else:
                     neut = neut + 1
-                #print("-" * 30)
         else:
             print("Error in API response")
 
@@ -369,43 +354,56 @@ def home():
 
         print("Sentiment Analysis Retrieval Successful..")
 
-        # Determine the sentiment with the maximum count
         max_sentiment = max(pos, neg, neut)
     
-    # Create labels and counts for the pie chart
         labels = ['Positive', 'Negative', 'Neutral']
         sizes = [pos, neg, neut]
     
-    # Highlight the sentiment with the maximum count
         explode = (0.1 if max_sentiment == pos else 0, 
                0.1 if max_sentiment == neg else 0, 
                0.1 if max_sentiment == neut else 0)
     
-    # Create the pie chart
         plt.figure(figsize=(8, 6))
         plt.pie(sizes, explode=explode, labels=labels, autopct='%1.1f%%', startangle=140)
-        #plt.title('Sentiment Distribution')
     
     # Show the pie chart
-        plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+        plt.axis('equal')  
         plt.savefig('static/piechart.png')
 
         return global_polarity, news_list, pos, neg, neut, news_pol
 
+    stock_symbol=st_symbol
+    stock_symbol=stock_symbol.upper()
+    stock_type = request.args.get('type', '')
+    news_api_key = 'efe1f77897c44a75a2ea2dee7476648b' 
 
-    csv_file_path = '/Users/sanvisharma/Desktop/project/data/tcsn.csv'
-    # Try reading the data from the CSV file
+    dfname=stock_symbol.lower()
+
+    if stock_type=='nse':
+        dfname=dfname+'n.csv'
+    elif stock_type=='bse':
+        dfname=dfname+'b.csv'
+
+    print(dfname)
+    print(stock_type)
+
+    csv_file_path = dfname
     df = pd.read_csv(csv_file_path)
+
+    if stock_type=='bse':
+        df = df[['Date', 'Open Price','High Price','Low Price','Close Price','No. of Trades']].rename(columns={'Open Price': 'Open', 'High Price': 'High','Low Price':'Low','Close Price':'Close','No. of Trades':'Volume'})
+
     quote_data=df.dropna()
     historical_data = get_historical_from_csv(df)
-    button_type = request.args.get('type', '')
-    print(button_type)
 
+    #print(historical_data)
+    
     if historical_data is not None and not historical_data.empty:
-    # Process the historical data as needed
         today_stock = historical_data.iloc[-1:]
         today_stock = today_stock.round(2)
         historical_data = historical_data.dropna()
+        
+    print(historical_data)
 
     pred_arima, error_arima, accuracy_arima, forecast_set, mean = ARIMA_ALGO(historical_data)
     print(accuracy_arima)
@@ -417,11 +415,7 @@ def home():
     print(accuracy_lr)
 
     pred_rf, error_rf, accuracy_rf = RF_ALGO(historical_data)
-    print(accuracy_rf)
-
-    news_api_key = 'efe1f77897c44a75a2ea2dee7476648b'
-    stock_symbol = request.args.get('search', '')
-    print(stock_symbol)
+    print(accuracy_rf)   
 
     global_polarity, news_list, pos, neg, neut, news_pol = get_financial_news(news_api_key, stock_symbol)
     idea, decision = recommendation(pos, neg, neut, quote_data, mean)
@@ -439,7 +433,7 @@ def home():
     rf_pred=round(rf_pred,2)
     lr_pred=round(lr_pred,2)
 
-    print(decision)
+    #print(decision)
 
     # Return a valid response tuple
     return render_template("finalres.html", aar=arima_accuracy, alstm=lstm_accuracy, arf=rf_accuracy, alr=lr_accuracy, arima_pred=arima_pred, lstm_pred=lstm_pred, rf_pred=rf_pred, lr_pred=lr_pred, decision=decision, fin_head=news_pol, idea=idea, quote=stock_symbol ,total_items=total_items, news_list = news_list)
