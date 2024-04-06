@@ -1,62 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Stock Prediction</title>
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400&display=swap"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-    />
-    <link rel="stylesheet" type="text/css" href="index.css" />
-    <style>
-      .search {
-        display: flex; /* Use flexbox to align items */
-        align-items: center; /* Align items vertically */
-        width: 300px; /* Set a width for the search box */
-        margin: 0 auto; /* Center the search box horizontally */
-        border: 1px solid #ccc; /* Add a border for visual appeal */
-        border-radius: 5px; /* Add rounded corners */
-        padding: 5px; /* Add padding inside the search box */
-      }
-
-      input[type="text"] {
-        flex: 1; /* Take up remaining space */
-        border: none; /* Remove input border */
-        padding: 5px; /* Add padding inside the input */
-        border-radius: 5px; /* Add rounded corners */
-        outline: none; /* Remove outline when focused */
-      }
-
-      button[type="submit"] {
-        background-color: #051c2f; /* Set button background color */
-        border: none; /* Remove button border */
-        padding: 5px; /* Add padding inside the button */
-        border-radius: 5px; /* Add rounded corners */
-        cursor: pointer; /* Add pointer cursor on hover */
-        outline: none; /* Remove outline when focused */
-      }
-
-      button[type="submit"]:hover {
-        background-color: #e9ecef; /* Change background color on hover */
-      }
-
-      i.fas.fa-search {
-        color: #495057; 
-      }
-
-      body {
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Stock Prediction</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400&display=swap" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+<link rel="stylesheet" type="text/css" href="index.css" />
+<style>
+    body {
         margin: 0;
-        margin-bottom: 0%;
         line-height: normal;
         background-image: url("{{ url_for('static', filename='bgimage.jpg') }}");
-      }
+        margin-bottom: 0%;
+    }
 
-      .homepage-1 {
+    .homepage-1 {
         margin-bottom: 0;
         position: relative;
         width: 100.1%;
@@ -65,9 +24,9 @@
         background-size: cover;
         background-repeat: no-repeat;
         background-position: top;
-      }
+    }
 
-      .rectangular {
+    .rectangular {
         border-radius: 25px;
         background: #6dc8b1;
         padding: 20px;
@@ -77,9 +36,9 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-      }
+    }
 
-      .stock-predictor {
+    .stock-predictor {
         position: relative;
         font-size: var(--font-size-xl);
         font-family: var(--font-inter);
@@ -87,9 +46,9 @@
         text-align: left;
         float: left;
         padding-left: 10px;
-      }
+    }
 
-      .rectangle-div {
+    .rectangle-div {
         margin-top: 5%;
         position: relative;
         background-color: #fff;
@@ -97,23 +56,30 @@
         height: 30px;
         border-radius: 25px;
         float: left;
-      }
+    }
 
-      .search input[type="text"] {
+    .search {
+        display: flex; /* Use flexbox to align items */
+        align-items: center; /* Align items vertically */
+        width: 300px; /* Set a width for the search box */
+        margin: 0 auto; /* Center the search box horizontally */
+        border: 1px solid #ccc; /* Add a border for visual appeal */
+        border-radius: 10px; /* Add rounded corners */
+        padding: 5px; /* Add padding inside the search box */
+        float: right;
+        margin: 7px;
+        border: rgb(8, 85, 8);
+    }
+
+    .search input[type="text"] {
         width: 275px;
         height: 25px;
         border-radius: 25px;
         border: none;
         text-align: center;
-      }
+    }
 
-      .search {
-        float: right;
-        margin: 7px;
-        border: rgb(8, 85, 8);
-      }
-
-      .search button {
+    .search button {
         background-color: black;
         color: #f2f2f2;
         float: right;
@@ -121,43 +87,50 @@
         font-size: 12px;
         border: none;
         cursor: pointer;
-      }
+    }
 
-      @media (max-width: 600px) {
+    .search button:hover {
+        background-color: #e9ecef; /* Change background color on hover */
+    }
+
+    i.fas.fa-search {
+        color: #495057;
+    }
+
+    @media (max-width: 600px) {
         .rectangular {
-          width: 90%; /* Adjusted width for smaller screens */
+            width: 90%; /* Adjusted width for smaller screens */
         }
 
         /* .market, */
         .stock-predictor /* .real-time */ {
-          font-size: 16px; /* Adjusted font size for smaller screens */
+            font-size: 16px; /* Adjusted font size for smaller screens */
         }
-      }
-    </style>
-  </head>
-  <body>
-    <form action="{{ url_for('result') }}" method="POST">
-
-      <div class="homepage-1">
+    }
+</style>
+</head>
+<body>
+<form action="{{ url_for('result') }}" method="POST">
+    <div class="homepage-1">
         <div class="rectangular">
-          <div class="stock-predictor">
-            <h1>Stock Prediction</h1>
-          </div>
-         
-
-          <div class="search">
-            <input
-              type="text"
-              id="searchInput"
-              placeholder="Search "
-              name="search"
-            />
-            <button type="submit">
-              <i class="fas fa-search" onclick="search()"></i>
-            </button>
-          </div>
+            <div class="stock-predictor">
+                <h1>Stock Prediction</h1>
+            </div>
+            <div class="search">
+                <label for="Dropdown"></label>
+                <select name="search">
+                    <option value="TCS">TCS</option>
+                    <option value="infosys">INFY</option>
+                    <option value="ICICI">ICICI</option>
+                    <option value="Reliance">RELIANCE</option>
+                    <option value="HDFC">HDFC</option>
+                </select>
+                <button type="submit">
+                    <i class="fas fa-search" onclick="search()"></i>
+                </button>
+            </div>
         </div>
-      </div>
-    </form>
-  </body>
+    </div>
+</form>
+</body>
 </html>
